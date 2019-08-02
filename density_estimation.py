@@ -6,6 +6,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
 from bnaf import *
+import scipy.stats
 
 import functools
 
@@ -22,28 +23,28 @@ def load_dataset(args):
     np.random.seed(args.manualSeed)
 
     if args.dataset == 'gq_ms_wheat':
-        dataset = GQ_MS('GQ_MS/wheat_perms.xlsx')
+        dataset = GQ_MS('GQ_MS/wheat_perms.xlsx', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
     elif args.dataset == 'gq_ms_soy':
-        dataset = GQ_MS('GQ_MS/soy_perms.xlsx')
+        dataset = GQ_MS('GQ_MS/soy_perms.xlsx', normalize=args.normalize, logxfm = args.xfm , shuffledata=args.shuffle)
     elif args.dataset == 'gq_ms_corn':
-        dataset = GQ_MS('GQ_MS/corn_perms.xlsx')
+        dataset = GQ_MS('GQ_MS/corn_perms.xlsx', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
     elif args.dataset == 'gq_ms_canola':
-        dataset = GQ_MS('GQ_MS/canola_perms.xlsx')
+        dataset = GQ_MS('GQ_MS/canola_perms.xlsx', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
     elif args.dataset == 'gq_ms_barley':
-        dataset = GQ_MS('GQ_MS/barley_perms.xlsx')
+        dataset = GQ_MS('GQ_MS/barley_perms.xlsx', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
     elif args.dataset == 'gq_ms_all':
-        dataset = GQ_MS('GQ_MS/all_perms.xlsx')
+        dataset = GQ_MS('GQ_MS/all_perms.xlsx', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
+    elif args.dataset == 'gq_ms_field_wheat':
+        dataset = GQ_MS('GQ_MS/allfielddata_wheatperms.csv', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
     else:
         raise RuntimeError()
 
 
     dataset_train = dataset.trn.x.astype(np.float32)
-    dataset_valid = dataset.val.x.astype(np.float32)
-    dataset_test = dataset.tst.x.astype(np.float32)
 
     args.n_dims = dataset.n_dims
 
-    return dataset_train, dataset_valid, dataset_test
+    return dataset_train
 
 
 def create_model(args, verbose=False):
@@ -108,6 +109,7 @@ def compute_log_p_x(model, x_mb):
     log_p_y_mb = tf.reduce_sum(tfp.distributions.Normal(tf.zeros_like(y_mb), tf.ones_like(y_mb)).log_prob(y_mb), axis=-1)#.sum(-1)
     return log_p_y_mb + log_diag_j_mb
 
+pass
 class parser_:
     pass
 
@@ -142,16 +144,21 @@ def main():
     args.cooldown = 10
     args.decay = 0.5
     args.min_lr = 5e-4
-    args.flows = 1
+    args.flows = 3
     args.layers = 1
-    args.hidden_dim = 3
+    args.hidden_dim = 6
     args.residual = 'gated'
     args.expname = ''
-    args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h3_flows1_gated_2019-07-28-22-39-13'
-    #C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h3_flows1_gated_2019-07-28-15-46-02
+    args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h6_flows3_gated_2019-08-02-01-41-59'
+    ##wheat
+    #r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h5_flows1_gated_2019-08-01-16-41-07' next best
+    # C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h5_flows2_gated_2019-08-01-16-51-30
+    ##transformed logs Johnson
+    #gq_ms_wheat_johnson_layers1_h6_flows3_gated_2019-08-01-23-27-34
     args.save = True
     args.tensorboard = 'tensorboard'
     args.manualSeed = 1
+    args.johnson = True
 
 
     args.path = os.path.join('checkpoint', '{}{}_layers{}_h{}_flows{}{}_{}'.format(
@@ -161,16 +168,32 @@ def main():
 
     print('Loading dataset..')
 
-    data_loader_train, data_loader_valid, data_loader_test = load_dataset(args)
+    args.normalize = False
+    args.xfm = False
+    args.shuffle = False
+    data= load_dataset(args)
 
-    alldata_1, all_data2 = load_dataset(args)
+    if args.johnson:
+        dist = []
+        ind = 0
+        dist.append(scipy.stats.johnsonsu.fit(data[:, ind]))
+        data[:, ind] = np.arcsinh((data[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
 
-    if args.save and not args.load:
-        print('Creating directory experiment..')
-        os.mkdir(args.path)
-        with open(os.path.join(args.path, 'args.json'), 'w') as f:
-            json.dump(str(args.__dict__), f, indent=4, sort_keys=True)
-    
+        ind = 1
+        dist.append(scipy.stats.johnsonsu.fit(data[:, ind]))
+        data[:, ind] = np.arcsinh((data[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+
+        ind = 2
+        dist.append(scipy.stats.johnsonsu.fit(data[:, ind]))
+        data[:, ind] = np.arcsinh((data[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+
+        ind = 3
+        dist.append(scipy.stats.johnsonsu.fit(data[:, ind]))
+        data[:, ind] = np.arcsinh((data[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+    else:
+        datamean = np.mean(data, axis=0)
+        datastd = np.std(data, axis=0)
+
     print('Creating BNAF model..')
     with tf.device(args.device):
         model = create_model(args, verbose=True)
@@ -196,6 +219,26 @@ def main():
     if args.load:
         load_model(args, root, load_start_epoch=True)
 
+    # args.dataset = 'gq_ms_all'
+    args.dataset = 'gq_ms_all'
+    alldata = load_dataset(args)
+
+    if args.johnson:
+        ind = 0
+        alldata[:, ind] = np.arcsinh((alldata[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+
+        ind = 1
+        alldata[:, ind] = np.arcsinh((alldata[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+
+        ind = 2
+        alldata[:, ind] = np.arcsinh((alldata[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+
+        ind = 3
+        alldata[:, ind] = np.arcsinh((alldata[:, ind] - dist[ind][-2]) / dist[ind][-1]) * dist[ind][1] + dist[ind][0]
+    else:
+        alldata = (alldata - datamean)/datastd
+
+    density = compute_log_p_x(model, alldata)
 
 if __name__ == '__main__':
     main()

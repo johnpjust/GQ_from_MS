@@ -220,7 +220,7 @@ def main():
         load_model(args, root, load_start_epoch=True)
 
     # args.dataset = 'gq_ms_all'
-    args.dataset = 'gq_ms_all'
+    args.dataset = 'gq_ms_field_wheat'
     alldata = load_dataset(args)
 
     if args.johnson:

@@ -25,7 +25,7 @@ class Sequential(tf.keras.models.Sequential):
         log_det_jacobian = 0.
         # for i, module in enumerate(self._modules.values()):
         for i, layer in enumerate(self.layers):
-            inputs, log_det_jacobian_ = layer(inputs)
+            inputs, log_det_jacobian_ = layer(inputs, training=training)
             log_det_jacobian = log_det_jacobian + log_det_jacobian_
         return inputs, log_det_jacobian
 
@@ -88,7 +88,7 @@ class BNAF(tf.keras.models.Sequential):
         ### apply layers in TF and get gradients...module in pytorch == layers in tf
         # for module in self._modules.values(): #pytorch implementation
         for layer in self.layers:
-            outputs, grad = layer(outputs, grad) #not sure if use "layer" or "layer.call"
+            outputs, grad = layer(outputs, grad, training=training) #not sure if use "layer" or "layer.call"
             grad = grad if len(grad.shape) == 4 else tf.reshape(grad, (grad.shape + [1, 1]))
 
         # return outputs, grad ## debug
@@ -271,7 +271,7 @@ class MaskedWeight(tf.keras.layers.Layer):
 
     # def forward(self, inputs, grad : torch.Tensor = None):
     # @tf.function
-    def call(self, inputs: tf.Tensor, grad: tf.Tensor = None):
+    def call(self, inputs: tf.Tensor, grad: tf.Tensor = None, **kwargs):
         """
         Parameters
         ----------
@@ -321,7 +321,7 @@ class Tanh(tf.keras.layers.Layer):
         self.dtype_in = dtype_in
 
     # @tf.function
-    def call(self, inputs, grad : tf.Tensor = None):
+    def call(self, inputs, grad : tf.Tensor = None, **kwargs):
         """
         Parameters
         ----------
@@ -339,33 +339,3 @@ class Tanh(tf.keras.layers.Layer):
 
         g = - 2 * tf.add(tf.subtract(inputs, tf.cast(tf.math.log(2.), self.dtype_in)), tf.keras.activations.softplus(- 2. * inputs))
         return tf.tanh(inputs), tf.add(tf.reshape(g,grad.shape), grad) if grad is not None else g
-## tensorflow probability implementation
-# class MaskedWeight_tfp(tfp.bijectors.Bijector):
-#
-#     def __init__(self, validate_args=False, name="MaskedWeight_tfp", Nin, Nout, init='glorot'):
-#         super(MaskedWeight_tfp, self).__init__(
-#             validate_args=validate_args,
-#             forward_min_event_ndims=0,
-#             name=name)
-#
-#         self.diag_transform = tfp.bijectors.TransformDiagonal(diag_bijector=tfp.bijectors.Exp())
-#         if init=='glorot':
-#             pass
-#         elif init=='he':
-#             pass
-#
-#     def _forward(self, x):
-#         return tf.matmul(x, self._weights)
-#
-#     def _inverse(self, y):
-#         return tf.log(y)
-#
-#     def _inverse_log_det_jacobian(self, y):
-#         return -self._forward_log_det_jacobian(self._inverse(y))
-#
-#     def _forward_log_det_jacobian(self, x):
-#         # Notice that we needn't do any reducing, even when`event_ndims > 0`.
-#         # The base Bijector class will handle reducing for us; it knows how
-#         # to do so because we called `super` `__init__` with
-#         # `forward_min_event_ndims = 0`.
-#         return x

@@ -36,9 +36,11 @@ def load_dataset(args):
         dataset = GQ_MS('GQ_MS/all_perms.xlsx', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
     elif args.dataset == 'gq_ms_field_wheat':
         dataset = GQ_MS('GQ_MS/allfielddata_wheatperms.csv', normalize=args.normalize, logxfm = args.xfm, shuffledata=args.shuffle)
+    elif args.dataset == 'gq_ms_field_wheat_2017-6-21':
+        dataset = GQ_MS('GQ_MS/2017-6-21_wheat_perms.csv', normalize=args.normalize, logxfm=args.xfm,
+                        shuffledata=args.shuffle)
     else:
         raise RuntimeError()
-
 
     dataset_train = dataset.trn.x.astype(np.float32)
 
@@ -135,7 +137,7 @@ def main():
 
     args = parser_()
     args.device = '/cpu:0'  # '/gpu:0'
-    args.dataset = 'gq_ms_wheat' #['gas', 'bsds300', 'hepmass', 'miniboone', 'power']
+    args.dataset = 'gq_ms_barley' #['gas', 'bsds300', 'hepmass', 'miniboone', 'power']
     args.learning_rate = np.float32(1e-2)
     args.batch_dim = 200
     args.clip_norm = 0.1
@@ -149,17 +151,18 @@ def main():
     args.hidden_dim = 6
     args.residual = 'gated'
     args.expname = ''
-    args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h6_flows3_gated_2019-08-02-01-41-59'
-    ##wheat
-    #r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h5_flows1_gated_2019-08-01-16-41-07' next best
-    # C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h5_flows2_gated_2019-08-01-16-51-30
+    # args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_wheat_layers1_h6_flows3_gated_2019-08-02-01-41-59' ## best wheat
+    # args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_soy_layers1_h6_flows3_gated_2019-08-06-16-27-14' ## second best soy
+    # args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_soy_layers1_h6_flows3_gated_2019-08-07-18-03-53' ## best soy
+    # args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_corn_layers1_h6_flows3_gated_2019-08-07-21-49-27' ## best corn
+    # args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_canola_layers1_h6_flows3_gated_2019-08-08-00-08-10' ## best canola
+    args.load = r'C:\Users\just\PycharmProjects\BNAF\checkpoint\gq_ms_barley_layers1_h6_flows3_gated_2019-08-08-01-25-39' ## best barley
     ##transformed logs Johnson
     #gq_ms_wheat_johnson_layers1_h6_flows3_gated_2019-08-01-23-27-34
     args.save = True
     args.tensorboard = 'tensorboard'
     args.manualSeed = 1
     args.johnson = True
-
 
     args.path = os.path.join('checkpoint', '{}{}_layers{}_h{}_flows{}{}_{}'.format(
         args.expname + ('_' if args.expname != '' else ''),
@@ -220,7 +223,7 @@ def main():
         load_model(args, root, load_start_epoch=True)
 
     # args.dataset = 'gq_ms_all'
-    args.dataset = 'gq_ms_field_wheat'
+    args.dataset = 'gq_ms_all'
     alldata = load_dataset(args)
 
     if args.johnson:
